@@ -7,7 +7,7 @@ import { run, bench, group, baseline } from 'mitata';
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const datasetPath = Path.resolve(__dirname, './DataSource')
+const datasetPath = Path.resolve(__dirname, '../../../DataSource')
 
 const state = JSON.parse(FS.readFileSync(`${datasetPath}/dataset.json`, { flag: 'r' }))
 const stateFirstLayer = JSON.parse(FS.readFileSync(`${datasetPath}/layers.json`, { flag: 'r' }))
@@ -18,19 +18,19 @@ const base = 10
 
 const baselineSet = {
     firstLayer: [stateFirstLayer[0]],
-    secondLayer: [stateSecondLayer[0]],
+    secondLayer: stateSecondLayer.slice(0,3),
     thirdLayer: stateThirdLayer.slice(0, base*3)
 }
 
 const smallSet = {
     firstLayer: [stateFirstLayer[0]],
-    secondLayer: [stateSecondLayer[0]],
+    secondLayer: stateSecondLayer.slice(0,3),
     thirdLayer: stateThirdLayer.slice(0, base*9)
 }
 
 const mediumSet = {
     firstLayer: [stateFirstLayer[0]],
-    secondLayer: [stateSecondLayer[0]],
+    secondLayer: stateSecondLayer.slice(0,3),
     thirdLayer: stateThirdLayer.slice(0, base*35)
 }
 
@@ -302,7 +302,7 @@ const withMethodMonoids = prepareMonoids(mediumSet.firstLayer, mediumSet.secondL
 
 group('Baseline Range', () => {
     // baseline('fake base', () => Array.from({length: 10}));
-    baseline('Baseline Set', () => operationsWithMethodLoops(state, baselineSet.firstLayer, baselineSet.secondLayer, baselineSet.thirdLayer));
+    baseline('Minimal Set', () => operationsWithMethodLoops(state, baselineSet.firstLayer, baselineSet.secondLayer, baselineSet.thirdLayer));
     bench('Small Set', () => operationsWithMethodLoops(state, smallSet.firstLayer, smallSet.secondLayer, smallSet.thirdLayer));
     bench('Medium Set', () => operationsWithMethodLoops(state, mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer));
 });
