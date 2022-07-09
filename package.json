@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
+    "create:data": "RECORDS=5000 LAYERS=10 VARIATIONS=5 node src/DataSource/Creator/index.js",
     "run:simple": "node src/Cases/Simple/index.js"
   },
   "author": "",

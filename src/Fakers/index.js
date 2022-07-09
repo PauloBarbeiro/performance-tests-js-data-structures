@@ -43,45 +43,93 @@ export function fakeProduct(){
     }
 }
 
-export function productIntoMap(){
-    const {id, ...rest} = fakeProduct()
+export function productIntoMap(withPredefinedId = undefined){
+    const { id, ...rest } = fakeProduct()
+    const finalId = withPredefinedId ? withPredefinedId : id
     return {
-        [id]: { ...rest }
+        [finalId]: { ...rest }
     };
 }
 
-export function getProductMapWith(length) {
-    return Array.from({length}).reduce((map)=>{
+export function getProductMapWith(length, withPredefinedIds = undefined) {
+    return Array.from({length}).reduce((map, _, index)=>{
         return {
             ...map,
-            ...productIntoMap()
+            ...productIntoMap(withPredefinedIds?.[index])
         }
     }, {})
 }
 
-export function getProductsVariationsMap(length, variations = 0) {
-    const originalMap = getProductMapWith(length)
+export function getProductsVariationsMap(length, variations = 0, withPredefinedIds = undefined,withSubData = false) {
+    const originalMap = getProductMapWith(length, withPredefinedIds)
     const ids = Object.keys(originalMap)
-    const result = {
+    const mapResult = {
         0: originalMap
     }
-
+    let variationsResult = [0]
     if(variations) {
-        Array.from({length: variations}).forEach((v, idx) => {
+        Array.from({length: variations}).forEach((_, idx) => {
+            const variation = idx+1
+            variationsResult.push(variation)
             const newVarMap = ids.reduce((map, id) => {
                 const original = originalMap[id]
+                const label = faker.finance.amount()
                 return {
                     ...map,
                     [id]: {
                         ...original,
-                        price: original.price + Math.random() * 10
+                        label,
+                        price: +label
                     }
                 }
             }, {})
 
-            result[idx+1] = {...newVarMap}
+            mapResult[variation] = {...newVarMap}
         })
     }
 
-    return result
+    return withSubData
+        ? [mapResult, ids, variationsResult]
+        : mapResult
+}
+
+export function getArrayOfIds(length){
+    return Array.from({ length }).map(() => faker.datatype.uuid())
+}
+
+/**
+ * Will return the following structure
+ * {
+ *     [layer: string]: {
+ *         [variation: number]: {
+ *             [id: string]: Product
+ *         }
+ *     }
+ * }
+ * @param layersQtd
+ * @param length
+ * @param variations
+ */
+export function getMultiLayerProducts(layersQtd = 1, length, variations = 0) {
+    const result = {}
+    const layers = getArrayOfIds(layersQtd)
+    let variationsResult;
+    let idsResult;
+    layers.forEach(l => {
+        const [ map, ids, vars ] = getProductsVariationsMap(length, variations, idsResult, true)
+
+        if( variationsResult === undefined ) {
+            variationsResult = vars
+        }
+
+        if( idsResult === undefined ) {
+            idsResult = ids
+        }
+
+        result[l] = {
+            ...map,
+        }
+    })
+
+    return [result, layers, variationsResult, idsResult]
 }
