@@ -1,2 +1,5 @@
 node_modules
 .idea
+
+# Do not add extra data to the repo
+src/DataSource/**.json

@@ -1,7 +1,0 @@
-{
-  "number_products": 5000,
-  "number_layers": 10,
-  "number_variations": 5,
-  "total_data_points": 250000,
-  "data_saved_in": "high-performance-test/src/DataSource"
-}
