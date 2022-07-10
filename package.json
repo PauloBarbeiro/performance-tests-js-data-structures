@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">14"
+  },
   "scripts": {
     "start": "node src/index.js",
     "create:data": "RECORDS=5000 LAYERS=10 VARIATIONS=5 node src/DataSource/Creator/index.js",
@@ -12,6 +15,7 @@
     "run:functional:1:2:layers": "node src/Cases/FunctionalPatterns/TwoSecondLayers/index.js",
     "run:functional:1:3:layers": "node src/Cases/FunctionalPatterns/ThreeSecondLayers/index.js",
     "run:functional:1:4:layers": "node src/Cases/FunctionalPatterns/FourSecondLayers/index.js",
+    "run:functional:2:2:layers": "node src/Cases/FunctionalPatterns/TwoFirstTwoSecondLayers/index.js",
     "run:functional:3:2:layers": "node src/Cases/FunctionalPatterns/ThreeFirstTwoSecondLayers/index.js",
     "run:functional:5:2:layers": "node src/Cases/FunctionalPatterns/FiveFirstTwoSecondLayers/index.js"
   },

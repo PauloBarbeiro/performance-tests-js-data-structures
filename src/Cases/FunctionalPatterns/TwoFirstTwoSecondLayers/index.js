@@ -16,8 +16,8 @@ const stateThirdLayer = JSON.parse(FS.readFileSync(`${datasetPath}/ids.json`, { 
 
 const base = 10
 
-const firstLayer = stateFirstLayer.slice(0,5)
-const secondLayer = stateSecondLayer.slice(0,3)
+const firstLayer = stateFirstLayer.slice(0,2)
+const secondLayer= stateSecondLayer.slice(0,3)
 
 const baselineSet = {
     firstLayer,

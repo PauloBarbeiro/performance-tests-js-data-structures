@@ -1,47 +1,72 @@
 "use strict"
-import FS from "fs"
-import { fileURLToPath } from 'url'
-import Path, { dirname } from "path"
+// First functions
+
 import flow from "lodash/flow.js";
-import { run, bench, group, baseline } from 'mitata';
+import get from "lodash/get.js"
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const datasetPath = Path.resolve(__dirname, './DataSource')
-
-const state = JSON.parse(FS.readFileSync(`${datasetPath}/dataset.json`, { flag: 'r' }))
-const stateFirstLayer = JSON.parse(FS.readFileSync(`${datasetPath}/layers.json`, { flag: 'r' }))
-const stateSecondLayer = JSON.parse(FS.readFileSync(`${datasetPath}/variations.json`, { flag: 'r' }))
-const stateThirdLayer = JSON.parse(FS.readFileSync(`${datasetPath}/ids.json`, { flag: 'r' }))
-
-const base = 10
-
-const baselineSet = {
-    firstLayer: [stateFirstLayer[0]],
-    secondLayer: [stateSecondLayer[0]],
-    thirdLayer: stateThirdLayer.slice(0, base*3)
+export function sumXInStorage(storage) {
+    return (x) => storage.latestCount += x;
 }
 
-const smallSet = {
-    firstLayer: [stateFirstLayer[0]],
-    secondLayer: [stateSecondLayer[0]],
-    thirdLayer: stateThirdLayer.slice(0, base*9)
+export function getPrice(object) {
+    return object.price;
 }
 
-const mediumSet = {
-    firstLayer: [stateFirstLayer[0]],
-    secondLayer: [stateSecondLayer[0]],
-    thirdLayer: stateThirdLayer.slice(0, base*35)
+export function getFirstLayer(id) {
+    return (map) => map[id];
 }
 
-/**
- * Goal: measure accessing data strategies for nested structures
- *
- * Collect a sum of all products
- */
+export function getSecondLayer(id) {
+    return (map) => map[id];
+}
 
-function operationsWithMethodLoops(_state, _firstLayer, _secondLayer, _thirdLayer){
-    const data = {
+export function getThirdLayer(id) {
+    return (map) => map[id];
+}
+
+// Monoidal functions
+
+export function rail(func, isFirstInChain = false) {
+    return ([state, pre]) => {
+        const x = func(isFirstInChain ? state : pre);
+        return [state, x];
+    };
+}
+
+export function getter(key) {
+    return (obj) => {
+        return obj && obj[key] ? obj[key] : obj;
+    };
+}
+
+export function fx(key, isFirstInChain = false) {
+    return rail(getter(key), isFirstInChain);
+}
+
+export function fLog() {
+    return rail((s) => {
+        console.log('---------\n',s)
+        return s
+    });
+}
+
+export function fz(func) {
+    return rail(func);
+}
+
+// Functional utilities
+
+export function customPipe(fns){
+    return function(x) {
+        return fns.reduce((v, fn) => {
+            return(fn(v))
+        }, x)
+    }
+}
+
+// Operation Methods For Tests
+function getStorageObject() {
+    return {
         latestSum: 0,
         pastSum: 0,
         latestAverage: 0,
@@ -50,6 +75,22 @@ function operationsWithMethodLoops(_state, _firstLayer, _secondLayer, _thirdLaye
         pastCount: 0,
         diff: 0
     }
+}
+
+function getPriceForSum (state, f, s, t) {
+    return state[f][s][t].price
+}
+
+function createGetterPriceForSum (state) {
+    return (f, s, t) => state[f][s][t].price
+}
+
+function createChainedGetterPriceForSum (state) {
+    return (f, s, t) => state?.[f]?.[s]?.[t].price ?? 0
+}
+
+export function executeNestedLoops(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
 
     _firstLayer.forEach(first => {
         const firstLevelData = _state[first]
@@ -70,36 +111,90 @@ function operationsWithMethodLoops(_state, _firstLayer, _secondLayer, _thirdLaye
     }
 }
 
-function sumXInStorage(storage) {
-    return (x) => storage.latestCount += x;
-}
 
-function getPrice(object) {
-    return object.price;
-}
+export function executeNestedLoopsGetterFunc(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
 
-function getFirstLayer(id) {
-    return (map) => map[id];
-}
+    _firstLayer.forEach(first => {
+        _secondLayer.forEach(second => {
+            _thirdLayer.forEach(third => {
+                data.latestSum += getPriceForSum(_state, first, second, third)
+            })
+        })
+    })
 
-function getSecondLayer(id) {
-    return (map) => map[id];
-}
-
-function getThirdLayer(id) {
-    return (map) => map[id];
-}
-
-function operationsWithMethodPipedSelectors(_state, _firstLayer, _secondLayer, _thirdLayer){
-    const data = {
-        latestSum: 0,
-        pastSum: 0,
-        latestAverage: 0,
-        pastAverage: 0,
-        latestCount: 0,
-        pastCount: 0,
-        diff: 0
+    return {
+        ...data,
+        latestAverage: data.latestSum / data.latestCount || 1,
+        pastAverage: data.pastSum / data.pastCount || 1,
+        diff: data.latestSum - data.pastSum
     }
+}
+
+export function executeNestedLoopsClosureGetter(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+    const getPrice = createGetterPriceForSum(_state)
+
+    _firstLayer.forEach(first => {
+        _secondLayer.forEach(second => {
+            _thirdLayer.forEach(third => {
+                data.latestSum += getPrice(first, second, third)
+            })
+        })
+    })
+
+    return {
+        ...data,
+        latestAverage: data.latestSum / data.latestCount || 1,
+        pastAverage: data.pastSum / data.pastCount || 1,
+        diff: data.latestSum - data.pastSum
+    }
+}
+
+export function executeNestedLoopsClosureChainedGetter(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+    const getPrice = createChainedGetterPriceForSum(_state)
+
+    _firstLayer.forEach(first => {
+        _secondLayer.forEach(second => {
+            _thirdLayer.forEach(third => {
+                data.latestSum += getPrice(first, second, third)
+            })
+        })
+    })
+
+    return {
+        ...data,
+        latestAverage: data.latestSum / data.latestCount || 1,
+        pastAverage: data.pastSum / data.pastCount || 1,
+        diff: data.latestSum - data.pastSum
+    }
+}
+
+export function executeNestedLoopsLodashGetter(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+
+    _firstLayer.forEach(first => {
+        _secondLayer.forEach(second => {
+            _thirdLayer.forEach(third => {
+                data.latestSum += get(_state, [first, second, third], 0)
+            })
+        })
+    })
+
+    return {
+        ...data,
+        latestAverage: data.latestSum / data.latestCount || 1,
+        pastAverage: data.pastSum / data.pastCount || 1,
+        diff: data.latestSum - data.pastSum
+    }
+}
+
+// Operations with Lodash
+
+export function executePipedSelectorsLodash(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+
     const sumPrice = sumXInStorage(data)
 
     const functions = []
@@ -130,44 +225,8 @@ function operationsWithMethodPipedSelectors(_state, _firstLayer, _secondLayer, _
     }
 }
 
-function rail(func, isFirstInChain = false) {
-    return ([state, pre]) => {
-        const x = func(isFirstInChain ? state : pre);
-        return [state, x];
-    };
-}
-
-function getter(key) {
-    return (obj) => {
-        return obj && obj[key] ? obj[key] : obj;
-    };
-}
-
-function fx(key, isFirstInChain = false) {
-    return rail(getter(key), isFirstInChain);
-}
-
-function fLog() {
-    return rail((s) => {
-        console.log('---------\n',s)
-        return s
-    });
-}
-
-function fz(func) {
-    return rail(func);
-}
-
-function operationsWithMethodMonoids(_state, _firstLayer, _secondLayer, _thirdLayer){
-    const data = {
-        latestSum: 0,
-        pastSum: 0,
-        latestAverage: 0,
-        pastAverage: 0,
-        latestCount: 0,
-        pastCount: 0,
-        diff: 0
-    }
+export function executePipedMonoidsLodash(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
 
     function calculator(storage) {
         return function (value) {
@@ -193,7 +252,7 @@ function operationsWithMethodMonoids(_state, _firstLayer, _secondLayer, _thirdLa
     });
 
     const monoidPipe = flow(functions)
-    monoidPipe([state])
+    monoidPipe([_state])
 
     return {
         ...data,
@@ -203,17 +262,8 @@ function operationsWithMethodMonoids(_state, _firstLayer, _secondLayer, _thirdLa
     }
 }
 
-
-function prepareFlow(_firstLayer, _secondLayer, _thirdLayer){
-    const data = {
-        latestSum: 0,
-        pastSum: 0,
-        latestAverage: 0,
-        pastAverage: 0,
-        latestCount: 0,
-        pastCount: 0,
-        diff: 0
-    }
+export function preparePipedSelectorsLodash(_firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
     const sumPrice = sumXInStorage(data)
 
     const functions = []
@@ -248,17 +298,8 @@ function prepareFlow(_firstLayer, _secondLayer, _thirdLayer){
     }
 }
 
-
-function prepareMonoids(_firstLayer, _secondLayer, _thirdLayer){
-    const data = {
-        latestSum: 0,
-        pastSum: 0,
-        latestAverage: 0,
-        pastAverage: 0,
-        latestCount: 0,
-        pastCount: 0,
-        diff: 0
-    }
+export function preparePipedMonoidsLodash(_firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
 
     function calculator(storage) {
         return function (value) {
@@ -286,7 +327,7 @@ function prepareMonoids(_firstLayer, _secondLayer, _thirdLayer){
     const monoidPipe = flow(functions)
 
     return (_state) => {
-        monoidPipe([state])
+        monoidPipe([_state])
 
         return {
             ...data,
@@ -297,36 +338,148 @@ function prepareMonoids(_firstLayer, _secondLayer, _thirdLayer){
     }
 }
 
-const withMethodPipedSelectors = prepareFlow(mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer)
-const withMethodMonoids = prepareMonoids(mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer)
+// Custom Pipe Implementation
 
-group('Baseline Range', () => {
-    // baseline('fake base', () => Array.from({length: 10}));
-    baseline('Baseline Set', () => operationsWithMethodLoops(state, baselineSet.firstLayer, baselineSet.secondLayer, baselineSet.thirdLayer));
-    bench('Small Set', () => operationsWithMethodLoops(state, smallSet.firstLayer, smallSet.secondLayer, smallSet.thirdLayer));
-    bench('Medium Set', () => operationsWithMethodLoops(state, mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer));
-});
+export function executePipedSelectorsCustom(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
 
-group('Different methods with Medium Set (mounting flow)', () => {
-    // baseline('fake base', () => Array.from({length: 10}));
-    baseline('Basic Loops', () => operationsWithMethodLoops(state, mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer));
-    bench('Piped Loops', () => operationsWithMethodPipedSelectors(state, mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer));
-    bench('Piped Monoids', () => operationsWithMethodMonoids(state, mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer));
-});
+    const sumPrice = sumXInStorage(data)
 
-group('Different methods with Medium Set (flow pre-processed )', () => {
-    // baseline('fake base', () => Array.from({length: 10}));
-    baseline('Basic Loops', () => operationsWithMethodLoops(state, mediumSet.firstLayer, mediumSet.secondLayer, mediumSet.thirdLayer));
-    bench('Piped Loops', () => withMethodPipedSelectors(state));
-    bench('Piped Monoids', () => withMethodMonoids(state));
-});
+    const functions = []
 
-await run({
-    avg: true, // enable/disable avg column (default: true)
-    json: false, // enable/disable json output (default: false)
-    colors: true, // enable/disable colors (default: true)
-    min_max: true, // enable/disable min/max column (default: true)
-    collect: false, // enable/disable collecting returned values into an array during the benchmark (default: false)
-    percentiles: false, // enable/disable percentiles column (default: true)
-});
-// */
+    _firstLayer.forEach((f) => {
+        _secondLayer.forEach((s) => {
+            _thirdLayer.forEach((t) => {
+                functions.push([
+                    getFirstLayer(f),
+                    getSecondLayer(s),
+                    getThirdLayer(t),
+                    getPrice,
+                    sumPrice
+                ]);
+            });
+        });
+    });
+
+    functions.forEach((fns) => {
+        customPipe(fns)(_state);
+    });
+
+    return {
+        ...data,
+        latestAverage: data.latestSum / data.latestCount || 1,
+        pastAverage: data.pastSum / data.pastCount || 1,
+        diff: data.latestSum - data.pastSum
+    }
+}
+
+export function executePipedMonoidsCustom(_state, _firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+
+    function calculator(storage) {
+        return function (value) {
+            storage.latestSum += value;
+        };
+    }
+
+    const sumFunc = calculator(data);
+
+    const functions = []
+
+    _firstLayer.forEach((first) => {
+        _secondLayer.forEach((second) => {
+            _thirdLayer.forEach((third) => {
+                functions.push(fx(first, true));
+                functions.push(fx(second));
+                functions.push(fx(third));
+                functions.push(fx('price'));
+                functions.push(fz(sumFunc));
+                // functions.push(fLog());
+            });
+        });
+    });
+
+    const monoidPipe = customPipe(functions)
+    monoidPipe([_state])
+
+    return {
+        ...data,
+        latestAverage: data.latestSum / data.latestCount || 1,
+        pastAverage: data.pastSum / data.pastCount || 1,
+        diff: data.latestSum - data.pastSum
+    }
+}
+
+export function preparePipedSelectorsCustom(_firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+    const sumPrice = sumXInStorage(data)
+
+    const functions = []
+
+    _firstLayer.forEach((f) => {
+        _secondLayer.forEach((s) => {
+            _thirdLayer.forEach((t) => {
+                functions.push([
+                    getFirstLayer(f),
+                    getSecondLayer(s),
+                    getThirdLayer(t),
+                    getPrice,
+                    sumPrice
+                ]);
+            });
+        });
+    });
+
+    return (_state) => {
+        functions.forEach((fx) => {
+            customPipe(fx)(_state);
+        });
+
+        return {
+            ...data,
+            latestAverage: data.latestSum / data.latestCount || 1,
+            pastAverage: data.pastSum / data.pastCount || 1,
+            diff: data.latestSum - data.pastSum
+        }
+    }
+}
+
+export function preparePipedMonoidsCustom(_firstLayer, _secondLayer, _thirdLayer){
+    const data = getStorageObject()
+
+    function calculator(storage) {
+        return function (value) {
+            storage.latestSum += value;
+        };
+    }
+
+    const sumFunc = calculator(data);
+
+    const functions = []
+
+    _firstLayer.forEach((first) => {
+        _secondLayer.forEach((second) => {
+            _thirdLayer.forEach((third) => {
+                functions.push(fx(first, true));
+                functions.push(fx(second));
+                functions.push(fx(third));
+                functions.push(fx('price'));
+                functions.push(fz(sumFunc));
+                // functions.push(fLog());
+            });
+        });
+    });
+
+    const monoidPipe = customPipe(functions)
+
+    return (_state) => {
+        monoidPipe([_state])
+
+        return {
+            ...data,
+            latestAverage: data.latestSum / data.latestCount || 1,
+            pastAverage: data.pastSum / data.pastCount || 1,
+            diff: data.latestSum - data.pastSum
+        }
+    }
+}
