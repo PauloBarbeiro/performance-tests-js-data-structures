@@ -17,7 +17,8 @@
     "run:functional:1:4:layers": "node src/Cases/FunctionalPatterns/FourSecondLayers/index.js",
     "run:functional:2:2:layers": "node src/Cases/FunctionalPatterns/TwoFirstTwoSecondLayers/index.js",
     "run:functional:3:2:layers": "node src/Cases/FunctionalPatterns/ThreeFirstTwoSecondLayers/index.js",
-    "run:functional:5:2:layers": "node src/Cases/FunctionalPatterns/FiveFirstTwoSecondLayers/index.js"
+    "run:functional:5:2:layers": "node src/Cases/FunctionalPatterns/FiveFirstTwoSecondLayers/index.js",
+    "run:functional:limit": "node src/Cases/FunctionalPatterns/ToTheLimit/index.js"
   },
   "author": "",
   "license": "ISC",
